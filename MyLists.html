@@ -7,9 +7,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -20,172 +17,22 @@
         <ul class="nav-links">
             <li><a href="index.html">Home</a></li>
             <li><a href="mylists.html">Checklist</a></li>
-            <li id="authStatus">Loading...</li>
         </ul>
     </nav>
 
-    <div class="container" id="authScreen">
-        <div class="auth-box">
-            <h2>Welcome to List0</h2>
-            <input type="email" id="email" placeholder="Email" class="input-field">
-            <input type="password" id="password" placeholder="Password" class="input-field">
-            <button id="loginBtn" class="button1">Log In</button>
-            <button id="signupBtn" class="button2">Sign Up</button>
-            <p id="authMessage"></p>
+    <div class="container">
+        <!-- My Lists Section -->
+        <div class="mylist-section">
+            <div class="mylist-header">
+                <h2>My Lists</h2>
+                <button id="newListBtn">+ New List</button>
+            </div>
+
+            <div id="listsContainer">
+                <!-- list-cards will be rendered here -->
+            </div>
         </div>
     </div>
 
-    <div class="container" id="appScreen" style="display:none;">
-        <div class="header">
-            <h1>My Checklists</h1>
-            <button id="newListBtn" class="button1">+ New Checklist</button>
-            <button id="logoutBtn" class="button2">Log Out</button>
-        </div>
-
-        <div id="listsContainer"></div>
-    </div>
-
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
-    <script>
-        // PASTE YOUR FIREBASE CONFIG HERE
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "your-project.firebaseapp.com",
-            projectId: "your-project",
-            storageBucket: "your-project.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abc123"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        const authScreen = document.getElementById('authScreen');
-        const appScreen = document.getElementById('appScreen');
-        const authStatus = document.getElementById('authStatus');
-        const listsContainer = document.getElementById('listsContainer');
-
-        // Auth state
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                authScreen.style.display = 'none';
-                appScreen.style.display = 'block';
-                authStatus.innerHTML = `<span style="color:#ffd43ff64">Hi, ${user.email}</span>`;
-                loadChecklists(user.uid);
-            } else {
-                authScreen.style.display = 'block';
-                appScreen.style.display = 'none';
-                authStatus.textContent = 'Not signed in';
-            }
-        });
-
-        // Login
-        document.getElementById('loginBtn').onclick = () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            auth.signInWithEmailAndPassword(email, password)
-                .catch(e => document.getElementById('authMessage').textContent = e.message);
-        };
-
-        // Signup
-        document.getElementById('signupBtn').onclick = () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            auth.createUserWithEmailAndPassword(email, password)
-                .catch(e => document.getElementById('authMessage').textContent = e.message);
-        };
-
-        // Logout
-        document.getElementById('logoutBtn').onclick = () => auth.signOut();
-
-        // Load user's checklists
-        function loadChecklists(uid) {
-            db.collection('users').doc(uid).collection('lists')
-                .onSnapshot(snapshot => {
-                    listsContainer.innerHTML = '';
-                    snapshot.forEach(doc => {
-                        renderList(doc);
-                    });
-                });
-        }
-
-        // Render a checklist
-        function renderList(doc) {
-            const list = doc.data();
-            const div = document.createElement('div');
-            div.className = 'list-card';
-            div.innerHTML = `
-                <div class="list-header">
-                    <h3 contenteditable="true" onblur="updateListName('${doc.id}', this.textContent)">${list.name || 'Untitled'}</h3>
-                    <button onclick="deleteList('${doc.id}')">Delete</button>
-                </div>
-                <ul class="items">
-                    ${list.items?.map((item, i) => `
-                        <li class="${item.done ? 'done' : ''}">
-                            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleItem('${doc.id}', ${i})">
-                            <span contenteditable="true" onblur="updateItem('${doc.id}', ${i}, this.textContent)">${item.text}</span>
-                            <button onclick="deleteItem('${doc.id}', ${i})">X</button>
-                        </li>
-                    `).join('') || '<li style="opacity:0.5">No items yet — add one below!</li>'}
-                </ul>
-                <div class="add-item">
-                    <input type="text" placeholder="Add an item..." onkeypress="if(event.key==='Enter') addItem('${doc.id}', this.value); this.value=''">
-                </div>
-            `;
-            listsContainer.appendChild(div);
-        }
-
-        // Add new checklist
-        document.getElementById('newListBtn').onclick = () => {
-            const uid = auth.currentUser.uid;
-            db.collection('users').doc(uid).collection('lists').add({
-                name: "New Checklist",
-                items: []
-            });
-        };
-
-        // Functions for updating data
-        window.updateListName = (listId, name) => {
-            db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId).update({name});
-        };
-
-        window.addItem = (listId, text) => {
-            if (!text.trim()) return;
-            db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId)
-                .update({
-                    items: firebase.firestore.FieldValue.arrayUnion({text, done: false})
-                });
-        };
-
-        window.toggleItem = (listId, index) => {
-            // We'll update full array — simple & reliable
-            db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId)
-                .get().then(doc => {
-                    let items = doc.data().items;
-                    items[index].done = !items[index].done;
-                    doc.ref.update({items});
-                });
-        };
-
-        window.deleteItem = (listId, index) => {
-            db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId)
-                .get().then(doc => {
-                    let items = doc.data().items;
-                    items.splice(index, 1);
-                    doc.ref.update({items});
-                });
-        };
-
-        window.deleteList = (listId) => {
-            if (confirm('Delete this checklist forever?')) {
-                db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId).delete();
-            }
-        };
-    </script>
 </body>
 </html>
