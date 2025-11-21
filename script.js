@@ -1,187 +1,105 @@
-// script.js
-// Full Firebase + Checklist App Logic for List0
-
-// PASTE YOUR OWN FIREBASE CONFIG HERE (from Firebase Console → Project Settings → Web App)
-const firebaseConfig = {
-    apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    authDomain: "your-project-id.firebaseapp.com",
-    projectId: "your-project-id",
-    storageBucket: "your-project-id.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abc123def456ghi789"
-};
-
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-// DOM Elements
-const authScreen = document.getElementById('authScreen');
-const appScreen = document.getElementById('appScreen');
-const authStatus = document.getElementById('authStatus');
+// DOM elements
 const listsContainer = document.getElementById('listsContainer');
+const newListBtn = document.getElementById('newListBtn');
 
-// Auth state observer
-auth.onAuthStateChanged(user => {
-    if (user) {
-        // User is signed in
-        authScreen.style.display = 'none';
-        appScreen.style.display = 'block';
-        authStatus.innerHTML = `Hi, <strong style="color:#ffd43a">${user.email.split('@')[0]}</strong>`;
-        loadChecklists(user.uid);
-    } else {
-        // No user signed in
-        authScreen.style.display = 'block';
-        appScreen.style.display = 'none';
-        authStatus.textContent = 'Not signed in';
+// Load checklists from LocalStorage
+function loadChecklists() {
+    const lists = JSON.parse(localStorage.getItem('lists') || '[]');
+    listsContainer.innerHTML = '';
+    if (!lists.length) {
+        listsContainer.innerHTML = '<p style="text-align:center; opacity:0.7; font-size:18px;">No checklists yet. Create your first one!</p>';
     }
-});
-
-// Login
-document.getElementById('loginBtn')?.addEventListener('click', () => {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    if (!email || !password) return alert("Please fill in both fields");
-    
-    auth.signInWithEmailAndPassword(email, password)
-        .catch(err => alert(err.message));
-});
-
-// Signup
-document.getElementById('signupBtn')?.addEventListener('click', () => {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    if (!email || !password) return alert("Please fill in both fields");
-    if (password.length < 6) return alert("Password must be at least 6 characters");
-
-    auth.createUserWithEmailAndPassword(email, password)
-        .catch(err => alert(err.message));
-});
-
-// Logout
-document.getElementById('logoutBtn')?.addEventListener('click', () => {
-    auth.signOut();
-});
-
-// Load all checklists for the current user
-function loadChecklists(uid) {
-    db.collection('users').doc(uid).collection('lists')
-        .onSnapshot(snapshot => {
-            listsContainer.innerHTML = '';
-            if (snapshot.empty) {
-                listsContainer.innerHTML = '<p style="text-align:center; opacity:0.7; font-size:18px;">No checklists yet. Create your first one!</p>';
-            }
-            snapshot.forEach(doc => renderList(doc));
-        }, err => console.error(err));
+    lists.forEach((list, i) => renderList(list, i));
 }
 
 // Render a single checklist
-function renderList(doc) {
-    const list = doc.data();
-    const listId = doc.id;
-
+function renderList(list, index) {
     const div = document.createElement('div');
     div.className = 'list-card';
     div.innerHTML = `
         <div class="list-header">
-            <h3 contenteditable="true" spellcheck="false"
-                onblur="updateListName('${listId}', this.textContent)"
-                onkeydown="if(event.key==='Enter') this.blur()">${escapeHtml(list.name || 'Untitled List')}</h3>
-            <button onclick="deleteList('${listId}')">Delete</button>
+            <h3 contenteditable="true" onblur="updateListName(${index}, this.textContent)" onkeydown="if(event.key==='Enter') this.blur()">${list.name}</h3>
+            <button onclick="deleteList(${index})">Delete</button>
         </div>
         <ul class="items">
-            ${list.items && list.items.length > 0
-                ? list.items.map((item, index) => `
+            ${(list.items && list.items.length)
+                ? list.items.map((item, i) => `
                     <li class="${item.done ? 'done' : ''}">
-                        <input type="checkbox" ${item.done ? 'checked' : ''} 
-                               onchange="toggleItem('${listId}', ${index})">
-                        <span contenteditable="true" spellcheck="false"
-                              onblur="updateItemText('${listId}', ${index}, this.textContent)"
-                              onkeydown="if(event.key==='Enter') this.blur()">${escapeHtml(item.text)}</span>
-                        <button onclick="deleteItem('${listId}', ${index})">×</button>
+                        <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleItem(${index}, ${i})">
+                        <span contenteditable="true" onblur="updateItem(${index}, ${i}, this.textContent)" onkeydown="if(event.key==='Enter') this.blur()">${item.text}</span>
+                        <button onclick="deleteItem(${index}, ${i})">×</button>
                     </li>
                 `).join('')
                 : '<li style="opacity:0.5; font-style:italic;">No items yet — add one below!</li>'
             }
         </ul>
         <div class="add-item">
-            <input type="text" placeholder="Add a new item... (press Enter)"
-                   onkeypress="if(event.key==='Enter' && this.value.trim()) { addItem('${listId}', this.value); this.value=''; }">
+            <input type="text" placeholder="Add a new item..." onkeypress="if(event.key==='Enter' && this.value.trim()) { addItem(${index}, this.value); this.value=''; }">
         </div>
     `;
     listsContainer.appendChild(div);
 }
 
-// Helper: prevent XSS
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+// Save lists to LocalStorage
+function saveLists(lists) {
+    localStorage.setItem('lists', JSON.stringify(lists));
 }
 
 // Add new checklist
-document.getElementById('newListBtn')?.addEventListener('click', () => {
-    if (!auth.currentUser) return;
-    db.collection('users').doc(auth.currentUser.uid).collection('lists').add({
-        name: "New Checklist",
-        items: []
-    });
-});
+newListBtn.onclick = () => {
+    const lists = JSON.parse(localStorage.getItem('lists') || '[]');
+    lists.push({ name: "New Checklist", items: [] });
+    saveLists(lists);
+    loadChecklists();
+};
 
-// Update list name
-window.updateListName = (listId, name) => {
-    if (!name.trim()) name = "Untitled List";
-    db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId)
-        .update({ name });
+// Update checklist name
+window.updateListName = (listIndex, name) => {
+    const lists = JSON.parse(localStorage.getItem('lists') || '[]');
+    lists[listIndex].name = name.trim() || "Untitled List";
+    saveLists(lists);
 };
 
 // Add new item
-window.addItem = (listId, text) => {
-    if (!text.trim()) return;
-    db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId)
-        .update({
-            items: firebase.firestore.FieldValue.arrayUnion({
-                text: text.trim(),
-                done: false
-            })
-        });
+window.addItem = (listIndex, text) => {
+    const lists = JSON.parse(localStorage.getItem('lists') || '[]');
+    lists[listIndex].items.push({ text: text.trim(), done: false });
+    saveLists(lists);
+    loadChecklists();
 };
 
-// Toggle item complete
-window.toggleItem = (listId, index) => {
-    const ref = db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId);
-    ref.get().then(doc => {
-        const items = doc.data().items;
-        items[index].done = !items[index].done;
-        ref.update({ items });
-    });
+// Toggle item done
+window.toggleItem = (listIndex, itemIndex) => {
+    const lists = JSON.parse(localStorage.getItem('lists') || '[]');
+    lists[listIndex].items[itemIndex].done = !lists[listIndex].items[itemIndex].done;
+    saveLists(lists);
+    loadChecklists();
 };
 
 // Update item text
-window.updateItemText = (listId, index, newText) => {
-    if (!newText.trim()) newText = "Empty item";
-    const ref = db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId);
-    ref.get().then(doc => {
-        const items = doc.data().items;
-        items[index].text = newText.trim();
-        ref.update({ items });
-    });
+window.updateItem = (listIndex, itemIndex, text) => {
+    const lists = JSON.parse(localStorage.getItem('lists') || '[]');
+    lists[listIndex].items[itemIndex].text = text.trim() || "Empty item";
+    saveLists(lists);
 };
 
 // Delete item
-window.deleteItem = (listId, index) => {
-    const ref = db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId);
-    ref.get().then(doc => {
-        const items = doc.data().items;
-        items.splice(index, 1);
-        ref.update({ items });
-    });
+window.deleteItem = (listIndex, itemIndex) => {
+    const lists = JSON.parse(localStorage.getItem('lists') || '[]');
+    lists[listIndex].items.splice(itemIndex, 1);
+    saveLists(lists);
+    loadChecklists();
 };
 
-// Delete entire list
-window.deleteList = (listId) => {
-    if (confirm("Delete this entire checklist forever?")) {
-        db.collection('users').doc(auth.currentUser.uid).collection('lists').doc(listId).delete();
+// Delete checklist
+window.deleteList = (listIndex) => {
+    const lists = JSON.parse(localStorage.getItem('lists') || '[]');
+    if (confirm("Delete this checklist forever?")) {
+        lists.splice(listIndex, 1);
+        saveLists(lists);
+        loadChecklists();
     }
 };
+
+// Initial load
+loadChecklists();
