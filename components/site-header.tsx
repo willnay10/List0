@@ -9,11 +9,11 @@ export async function SiteHeader() {
     const { data: { user } } = await supabase.auth.getUser()
 
     return (
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container flex h-14 items-center justify-between">
-                <div className="flex items-center gap-2 font-bold">
+        <header className="relative z-20 mt-6 flex w-full justify-center">
+            <div className="flex w-full max-w-4xl items-center justify-between gap-4 rounded-full border bg-background/80 px-6 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-8">
+                <div className="flex items-center gap-4 font-bold">
                     <Link href="/" className="flex items-center gap-2">
-                        <span className="text-xl bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
+                        <span className="text-xl text-foreground">
                             List0
                         </span>
                     </Link>
@@ -21,15 +21,12 @@ export async function SiteHeader() {
                 <div className="flex items-center gap-4">
                     <ModeToggle />
                     {user ? (
-                        <form action="/auth/signout" method="post">
-                            <Button variant="ghost" size="icon">
-                                <LogOut className="h-5 w-5" />
-                                <span className="sr-only">Sign out</span>
-                            </Button>
-                        </form>
+                        <Button asChild variant="default" size="sm">
+                            <Link href="/dashboard">Dashboard</Link>
+                        </Button>
                     ) : (
                         <Button asChild variant="default" size="sm">
-                            <Link href="/login">Sign In</Link>
+                            <Link href="/login">Login</Link>
                         </Button>
                     )}
                 </div>

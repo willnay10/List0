@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,7 +12,6 @@ export default function LoginPage() {
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const router = useRouter()
     const supabase = createClient()
 
     const handleSignUp = async () => {
@@ -22,9 +20,6 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({
             email,
             password,
-            options: {
-                emailRedirectTo: `${location.origin}/auth/callback`,
-            },
         })
         if (error) {
             setError(error.message)
@@ -44,19 +39,18 @@ export default function LoginPage() {
         if (error) {
             setError(error.message)
         } else {
-            router.push('/dashboard')
-            router.refresh()
+            window.location.href = '/dashboard'
         }
         setLoading(false)
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 p-4 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+        <div className="flex min-h-[calc(100vh-140px)] items-center justify-center p-4">
             <Card className="w-full max-w-md border-none shadow-2xl bg-card/50 backdrop-blur-sm">
                 <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-center">Welcome Back</CardTitle>
+                    <CardTitle className="text-2xl font-bold text-center">Sign in or sign up</CardTitle>
                     <CardDescription className="text-center">
-                        Sign in to your account or create a new one
+                        Use email and password. Your session stays active until you sign out.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

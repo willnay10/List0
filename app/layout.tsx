@@ -26,7 +26,11 @@ export default function RootLayout({
                     enableSystem
                     disableTransitionOnChange
                 >
-                    <div className="relative flex min-h-screen flex-col bg-background">
+                    <div className="relative flex min-h-screen flex-col bg-gradient-to-br from-sky-100 via-sky-50 to-blue-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-colors duration-500">
+                        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+                            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-sky-300/25 blur-[100px] dark:bg-sky-900/20" />
+                            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-300/25 blur-[100px] dark:bg-blue-900/20" />
+                        </div>
                         <SiteHeader />
                         <main className="flex-1">{children}</main>
                         <SiteFooter />
